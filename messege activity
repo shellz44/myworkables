@@ -1,0 +1,156 @@
+package com.example.web03.bulkmessenger;
+
+import android.app.Activity;
+import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
+
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+
+import handler.MyHandler;
+
+public class MessageActivity extends AppCompatActivity   {
+    TextView tv;
+    EditText et;
+    Button b;
+
+
+    public ArrayList<String> test = new ArrayList<>(10);
+
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_message);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+       tv=(TextView)findViewById(R.id.txt_cn);
+        et=(EditText)findViewById(R.id.editText_txt);
+        b=(Button)findViewById(R.id.button);
+
+
+        Intent in=getIntent();
+        tv.setText(" ");
+        test=in.getStringArrayListExtra("STRING_ARRAY");
+        int i=test.size();
+        for(int j=0;j<i;j++)
+        {
+            String s = test.get(j).toString();
+            tv.append(s);
+            tv.append("  ");
+        }
+b.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        String temp = et.getText().toString();
+        int i = test.size();
+        for (int j = 0; j < i; j++) {
+
+            String s = test.get(j).toString();
+            new AsynctaskRunner().execute(temp, s, null);
+        }
+
+
+    }
+});
+
+    }
+    private class AsynctaskRunner extends AsyncTask<String,String,String>
+    {
+
+        final SharedPreferences settings=getSharedPreferences("user_info", 0);
+       final ProgressDialog pd=new ProgressDialog(MessageActivity.this);
+
+
+        @Override
+       protected String doInBackground(String... params) {
+
+            String MESSAGE=null;
+            String NUMBER=null;
+            
+           try
+            {
+             MESSAGE= URLEncoder.encode(params[0],"UTF-8");
+            }catch (UnsupportedEncodingException e){
+                e.printStackTrace();
+            }
+
+            try
+            {
+                NUMBER=URLEncoder.encode(params[1],"UTF-8");
+            }catch (UnsupportedEncodingException e){
+             e.printStackTrace();
+            }
+          String uri;
+            String pass=settings.getString("username","").toString();
+            String nam=settings.getString("sender","").toString();
+            uri=settings.getString("type","").toString();
+
+            if(uri.equals("LM1"))
+            {
+                uri="http://userd.gjsms.net/api/v1/sms/single.json?token="+ pass +"&sender_id="+ nam +"&msisdn=" + NUMBER + "&text=" + MESSAGE + "&route=TRANS";
+            }
+            MyHandler mine=new MyHandler();
+            String json=mine.makeServiceCall(uri);
+            if(json!=null)
+            {
+                try{
+                    JSONObject job=new JSONObject(json);
+                    boolean error=job.getBoolean("error");
+                    if(error)
+                    {
+                        Log.e("Add Prediction Error: ",
+                                "> " + job.getString("message"));
+                    }
+                }catch (JSONException e)
+                {
+                        e.printStackTrace();
+                    }
+                }
+            else
+            {
+                Log.e("JSON Data", "JSON data error!");
+            }
+
+
+            return null;
+        }
+        protected void onPreExecute()
+        {
+         super.onPreExecute();
+            pd.setTitle("Sending..");
+            pd.setMessage("Please Wait");
+            pd.show();
+        }
+        protected  void onPostExecute(String results)
+        {
+            super.onPostExecute(results);
+            pd.dismiss();
+            Toast.makeText(getApplicationContext(),"successfully send",Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+}
+
